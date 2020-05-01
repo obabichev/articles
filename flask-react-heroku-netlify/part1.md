@@ -769,7 +769,182 @@ And the files structure like this:
     └── requirements.txt
 ```
 
+## Authorization
+
+We already have a working database and configured SQLAlchemy 
+to work with it, but actually we don't use the database 
+for something useful. So before we move to the 
+dockerizing Flask app I will create some authorization 
+services. Usually, it is the first thing I implement in my 
+applications. If you don't need authorization or don't 
+want to spend time for it now you can move to the next 
+part, but I expect that I will use these services from the 
+React app.
+
+In general, the authorization will be pretty simple. 
+We need 3 services: register, login, and get the user. 
+When the register service is called we need to create new 
+instance of the User model and save it in the database after 
+that set the cookies (to keep information about this user 
+among the next request) and return the user object to 
+the callee. Similar thing for the login service, but 
+we need to check the password instead of creating a new 
+user. And one more service to get the current user 
+information (based on cookies), that will allow 
+the frontend to check is the user authorized:
+
+![34](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.06.auth-services2.png)
+
+In this part, we will write a bit more code than in previous 
+but in the end, we will have working authorization. 
+Of course, it will not be implemented from scratch, 
+we will use the library `flask_login`, 
+I recommend to look at the related article in the mega 
+tutorial [[15]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins). 
+Let's start with installing this library:
+
+```shell script
+pip install Flask-Login
+pip freeze > requirements.txt
+```
+
+Firstly we will update our `User` model. 
+The main thing Flask Login will do for us is to keep 
+the information about a logged user in the cookies, 
+but by default, Flask Login knows nothing about our 
+data model. In the documentation [] written that the 
+User model should implement methods `is_authenticated`, 
+`is_active`, `is_anonymous`, `get_id`, and until we need 
+a custom implementation of these methods we can 
+use `UserMixin` with simple implementation.
+
+Let's open `models.py` and add `UserMixin` to the `User` class:
+
+```python
+class User(UserMixin, db.Model):
+```
+
+Also, we know that Flask Login stores the only 
+id of the user in the cookies, and it is necessary to 
+provide the library a method to get the user entity by id. 
+We can do that in a next way:
+
+```python
+@login.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+```
+
+Also, I will add two helper methods into the `User` class 
+to work with passwords. One of these methods will convert 
+a password into hash and store in the user entity, and the 
+next one will take a string as argument and check is it the 
+right password or not. After that the whole content of 
+`models.py` should be like this:
+
+```python
+from flask_login import UserMixin
+from werkzeug.security import generate_password_hash, check_password_hash
+
+from app import db
+from app import login
+
+
+class User(UserMixin, db.Model):
+    __tablename__ = 'user'
+
+    id = db.Column(db.BigInteger, primary_key=True)
+    username = db.Column(db.String(64), index=True, unique=True)
+    email = db.Column(db.String(120), index=True, unique=True)
+    password_hash = db.Column(db.String(128))
+
+    def __repr__(self):
+        return '<User {}>'.format(self.username)
+
+    def set_password(self, password):
+        self.password_hash = generate_password_hash(password)
+
+    def check_password(self, password):
+        return check_password_hash(self.password_hash, password)
+
+    @property
+    def serialize(self):
+        return {
+            'id': self.id,
+            'username': self.username,
+            'email': self.email,
+        }
+
+
+@login.user_loader
+def load_user(user_id):
+    return User.query.get(int(user_id))
+
+```
+
+For the services, I will create the separate file `app/routes.py`. As I already told above we need three services: 
+- `/register` should take `{username, email, password}` JSON, 
+create a new user, and save it. After that, it should 
+call `login_user(user)` (in the code I will also 
+set `remember` to `True`, but you can take value 
+for it from UI) to say Flask Login that this user 
+should be saved in the cookies, and then return a JSON 
+with the user as a result;
+- `/login` should take `{email, password}` JSON, 
+try to find the user with this email in the DB, check 
+the password, and if everything is ok to call 
+`login_user(user)` and return user in JSON;
+- `/user` should return JSON with the authorized user. 
+In the request, the information about the user is in 
+cookies. Flask Login knows how to take this information 
+from cookies (first of all because this library saved 
+it there), we already create methods for Flask Login that 
+helps it to find the user in DB, and the library provides 
+found user with `current_user` variable:
+
+```python
+from flask import request, jsonify
+from flask_login import login_user, current_user
+
+from app import app, db
+from app.models import User
+
+
+@app.route('/api/register', methods=['POST'])
+def register():
+    content = request.get_json()
+    user = User(username=content['username'],
+                email=content['email'])
+    user.set_password(content['password'])
+    db.session.add(user)
+    db.session.commit()
+    login_user(user, remember=True)
+    return jsonify(user.serialize)
+
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    content = request.get_json()
+
+    user = User.query.filter_by(email=content['email']).first()
+    if user is None or not user.check_password(content['password']):
+        return jsonify({'message': 'Wrong credentials'}), 400
+
+    login_user(user, remember=True)
+    return jsonify(user.serialize)
+
+
+@app.route('/api/user')
+def get_current_user():
+    if current_user.is_authenticated:
+        return jsonify(current_user.serialize)
+    return jsonify(None)
+```
+
 ## Dockerize Flask app
+
+
+### Dockerfile
 
 ## Links
 
@@ -787,7 +962,12 @@ And the files structure like this:
 * [[12] psql documentation](https://www.postgresql.org/docs/9.0/app-psql.html)
 * [[13] The Flask Mega-Tutorial Part IV: Database](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-iv-database)
 * [[14] PyPi: psycopg2-binary](https://pypi.org/project/psycopg2-binary/)
-
+* [[15] The Flask Mega-Tutorial Part V: User Login](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins)
+* [[16] Flask-Login](https://flask-login.readthedocs.io/en/latest/)
+* [[] Installing psycopg2-binary with Python:3.6.4-alpine doesn't work #684](https://github.com/psycopg/psycopg2/issues/684)
+* [[] Build and run your image](https://docs.docker.com/get-started/part2/)
+* [[] docker run (command line reference)](https://docs.docker.com/engine/reference/commandline/run/)
+* [[] About Alpine Linux](https://alpinelinux.org/about/)
 -----------------------------------------------
 
 
