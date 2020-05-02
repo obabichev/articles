@@ -509,7 +509,7 @@ we created in docker.  Let's open file `server/__init__.py` and right
 after creating `app` (`app = Flask(__name__)`) add:
 
 ```python
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:5434/mablog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:5433/mablog'
 ```
 
 In this url you can see that we use login and password `mablog` (`mablog:mablog`), 
@@ -951,7 +951,7 @@ from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:5434/mablog'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:5433/mablog'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SECRET_KEY'] = 'this secret should not be in the code and we will remove it from here'
 
@@ -985,8 +985,148 @@ curl --header "Content-Type: application/json" --request POST --data '{"username
 
 ## Dockerize Flask app
 
+We already have a database, some services that work with this database, 
+but our development process is still not too comfortable. We created 
+DB in docker, forwarded ports, ran the server locally... there a lot 
+of possibilities for improvements. We will do the next steps:
+
+- move environment-specific things to environment variables 
+(because database path and credentials might different for local, 
+locally dockerized and production servers);
+- dockerize flask application; 
+- gather the DB container and server container within the 
+docker-compose configuration file.
+
+![37](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.07.dockerized-flask-app.png)
+
+### Environment configurations
+
+At the current moment, we have come hardcoded constants 
+like `SQLALCHEMY_DATABASE_URI` and `SECRET_KEY`, but the problems 
+with them that it should not be in the source code and it might 
+be different in different environments. Fortunately, there 
+is a common way to configure different environments for Flask 
+applications [[18]](https://flask.palletsprojects.com/en/1.1.x/config/). 
+Let's create the `server/config.py` file with the following content:
+
+```python
+import os
+
+
+class Config(object):
+    SECRET_KEY = os.environ['SECRET_KEY']
+    SQLALCHEMY_DATABASE_URI = os.environ['DATABASE_URL']
+    SQLALCHEMY_TRACK_MODIFICATIONS = False
+
+
+class ProductionConfig(Config):
+    DEBUG = False
+    TESTING = False
+
+
+class DevelopmentConfig(Config):
+    DEBUG = True
+
+```
+
+Here you can see base class `Config` that has parameters related to both configs 
+production and development. And we use there two environment variables `SECRET_KEY` 
+and `DATABASE_URL`. Classes `ProductionConfig` and `DevelopmentConfig` extend the 
+base class with specific parameters for production and development environments 
+respectively. Here you can ask how can we say to the Flask app what configuration 
+it should use. And we can use for it one more environment variable. Let's update 
+the `__init__.py` file with the following code:
+
+```python
+import os
+from flask import Flask
+from flask_login import LoginManager
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config.from_object(os.environ['APP_SETTINGS'])
+
+db = SQLAlchemy(app)
+login = LoginManager(app)
+
+from app import models
+from app import routes
+```
+
+We replaced all the hardcoded parameters by the call of the 
+method `app.config.from_object` with the 
+argument `os.environ['APP_SETTINGS']`. We will use the environment 
+variable `APP_SETTINGS` to say Flask how to find the configuration. 
+For example, the value `config.ProductionConfig` in the `APP_SETTINGS` will 
+say the Flask app that it should find the file `config.py` and take 
+class `ProductionConfig` from there.
+
+We can check that this configuration is working now. 
+First of all, we will add the environment variables `APP_SETTINGS`, `DATABASE_URL`, 
+and `SECRET_KEY` with the following commands:
+
+```
+export APP_SETTINGS="config.ProductionConfig"
+export DATABASE_URL="postgresql://mablog:mablog@localhost:5433/mablog"
+export SECRET_KEY=it-is-a-secret-key
+```
+
+You can check that the environment variable was added by printing it:
+
+```shell script
+echo $APP_SETTINGS
+```
+
+The result in my case:
+
+> config.DevelopmentConfig
+
+When variables were added we can run the server:
+
+```shell script
+flask run
+```
+
+Now you can try one of the services created before.
+
+### .envrc
+
+It is not comfortable to create environment variables manually every time 
+(usually you have more variables than 3). To solve this problem I usually 
+create a `.envrc` file and put all variables there. Let's create 
+the `server/.envrc` file with the following content:
+
+```shell script
+export APP_SETTINGS="config.DevelopmentConfig"
+export DATABASE_URL="postgresql://mablog:mablog@localhost:5433/mablog"
+export SECRET_KEY=it-is-a-secret-key
+export FLASK_ENV=development
+```
+
+Unfortunately, it is not possible to set  `FLASK_ENV` via config, so if you want to 
+have hot reloading you will have to set this parameter as an environment variable [[19]](https://stackoverflow.com/questions/45896649/flask-config-file-debug-true-do-nothing) [[20]](https://www.reddit.com/r/flask/comments/7xt68o/af_debug_mode_not_working_when_adding_it_as_config/).
+
+After that you only need to execute this file and start server:
+
+```shell script
+source .envrc
+flask run
+```
+
+But this file should not be under the source control, so I suggest to add in this 
+directory `.gitignore` file with the following content 
+(I suggest adding the `venv` directory to `.gitingore` if you didn't do that before):
+
+```shell script
+/venv/
+.envrc
+```
+
+It is already much better than before, but we will go deeper and dockerize our application.
 
 ### Dockerfile
+
+### docker-compose
 
 ## Links
 
@@ -1007,6 +1147,10 @@ curl --header "Content-Type: application/json" --request POST --data '{"username
 * [[15] The Flask Mega-Tutorial Part V: User Login](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins)
 * [[16] Flask-Login](https://flask-login.readthedocs.io/en/latest/)
 * [[17] Postman](https://www.postman.com/)
+* [[18] Configuration Handling](https://flask.palletsprojects.com/en/1.1.x/config/)
+* [[19] Flask Config File - 'DEBUG=True' Do Nothing (StackOverflow)](https://stackoverflow.com/questions/45896649/flask-config-file-debug-true-do-nothing)
+* [[20] Debug Mode not working when adding it as config (Reddit)](https://www.reddit.com/r/flask/comments/7xt68o/af_debug_mode_not_working_when_adding_it_as_config/)
+
 * [[] Installing psycopg2-binary with Python:3.6.4-alpine doesn't work #684](https://github.com/psycopg/psycopg2/issues/684)
 * [[] Build and run your image](https://docs.docker.com/get-started/part2/)
 * [[] docker run (command line reference)](https://docs.docker.com/engine/reference/commandline/run/)
