@@ -22,9 +22,9 @@ services like Heroku and Netlify;
 ## Architecture overview
 
 
-First of all, we need to understand what services and technologies we will 
-use to know the scope we want to cover. If you see some of these terms the 
-first time in your life do not worry, later we will look at all of them in detail.
+First off, we need to understand what services and technologies we will 
+use to know the scope we want to cover. If you've never seen these terms in 
+your life do not worry, we will look at all of them in detail later.
 
 We will differentiate two configurations: local and production. 
 
@@ -32,57 +32,55 @@ We will differentiate two configurations: local and production.
 
 Requirements to the local configuration:
 
-- it should be available to run locally of course;
-- the development process should be comfortable;
-- set up of the configuration should not take to much time on a 
+- It should be available to run locally of course;
+- The development process should be comfortable;
+- Set up of the configuration should not take too much time on a 
 new machine (or for new developer);
 
 ![13](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.02.high-overview-local.png)
 
 To achieve these requirements we will use docker to run each 
 component of the system (backend, frontend, database,...) in isolated containers. 
-This approach will allow run and stop the whole system by a few commands in the 
-terminal. Also, such an approach allows running different projects without 
+This approach will allow the whole system to run and stop with just a few commands in the 
+terminal. Also, this approach allows running different projects without 
 conflicts (like the same ports, environment variables and so on).
 
 ### Production configuration
 
 Requirements to the production configuration:
 
-- it should work from the Internet of course;
-- we should not spend much money on it (ideally at all);
-- updating the system should not take lots of effort;
+- It should work from the Internet;
+- We should not spend much money on it (ideally none at all);
+- Updating the system should not take lots of effort;
 
 ![12](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/high-overview.png)
 
-At the current moment, there are plenty of cloud services that provide a 
-possibility to deploy your application. The most famous of them are Amazon AWS, 
-Microsoft Asure and Google Cloud. But for my pet projects, I choose Heroku 
+There are plenty of cloud services that provide a 
+possibility to deploy your application at the moment. The most popular ones 
+are Amazon AWS, Microsoft Asure and Google Cloud. But for my pet projects, I choose Heroku 
 as an alternative to these services because of  its nice free plan for small 
-projects and simple configuration/deploy process.
+projects and simple configuration/deploy processes.
 
-Of course, there are limitations and I think main of them that instance 
-on Heroku goes to sleep after about half-hour of inactive, but on the 
-free plan, you do not have to provide bank card information at all. Anyway, 
-I recommend look at comparing these clouds on Stackshare 
-[[1]](https://stackshare.io/stackups/google-app-engine-vs-heroku)[[2]](https://stackshare.io/stackups/amazon-ec2-vs-heroku)[[3]](https://stackshare.io/stackups/heroku-vs-microsoft-azure), maybe you will 
-decide that you want another cloud and this tutorial is not appropriate.
+Of course, there are limitations and the biggest problems are the instances 
+on Heroku that go to sleep after about half an hour of inactivity. On the 
+free plan, you do not have to provide your banking information at all.  
+I recommend looking at these cloud comparisons on Stackshare 
+[[1]](https://stackshare.io/stackups/google-app-engine-vs-heroku)[[2]](https://stackshare.io/stackups/amazon-ec2-vs-heroku)[[3]](https://stackshare.io/stackups/heroku-vs-microsoft-azure), 
+and decide if you want another cloud and if this tutorial is appropriate or not.
 
-Also, we will use the service Netlify where we will publish the built 
-React app. It's useful because we can publish any static files there, 
-Netlify will serve it in its CDN and proxy API requests to the backend.
+We will use the service Netlify where we will publish the built 
+React app. It's useful because we can publish any static files there. 
+Netlify will serve it inside it's own CDN and it will proxy API requests to the backend.
 
 ## Create Flask application
 
-It was a quite long introduction and time to start has come.
-
-It was a quite long introduction and time to start has come. 
+It was quite a long introduction, so let's get started. 
 In this section, we will create a simple backend app to check that 
-everything goes right. 
+everything works well. 
 
 ### Project structure
 
-Let's start from the opening terminal and creating a new 
+Let's start from the opening terminal and create a new 
 directory for the app:
 
 ```shell script
@@ -90,8 +88,8 @@ mkdir my-awesome-blog
 cd my-awesome-blog
 ```
 
-Also in this directory, we will init git to store 
-the project on GitHub and deploy in the clouds later:
+In this directory, we will create git repository to store 
+the project on GitHub and deploy it in the clouds later:
 
 ```shell script
 git init
@@ -102,7 +100,7 @@ You should see something like this:
 > Initialized empty Git repository in /Users/obabichev/development/my-awesome-blog/.git/
 
 Directly in the root directory, we will store files related to 
-the whole project (like docker-compose.yml but about it later). 
+the whole project (like `docker-compose.yml`). 
 For the client-side part with React and server-side part with 
 Flask, we will create folders `client` and `server` respectively.
 
@@ -114,42 +112,42 @@ mkdir client
 
 ### Python installation
 
-For the next step, you will need installed python 3 on the machine.
-You can check the version of python by the command:
+For the next step, you will need to install python 3 on your computer (if it's not installed 
+yet). You can check the version of python using the command:
 
 ```shell script
 python --version
 ```
 
-And if the result like this:
+If the result looks like this:
 
 > Python 2.7.10
 
 It means that you have python 2. 
-There is a chance that you have installed python 3 
-but it is available by the other command, usually `python3` 
-(my case), so you can check the next command:
+There is a chance that you have installed python 3, 
+but it is available using the `python3` command. Use the following 
+command to check it:
 
 ```shell script
 python3 --version
 ```
 
-On my machine I got the result:
+I got the following result on my computer:
 
 > Python 3.7.7
 
 If you already have installed python 3 you can continue to the next 
-step. In another case, you will have to install it [[4]](https://www.python.org/downloads/).
+step. Otherwise, you will have to install it [[4]](https://www.python.org/downloads/).
 
 ### Python environment
 
-Now we can open the server directory and create a python virtual 
+We can now open the server directory and create a python virtual 
 environment there. I suggest creating a separate environment for 
-each python project [[5]](https://docs.python.org/3/library/venv.html). When you use environment all installed 
-packages will be stored in the directory of the environment 
-(`venv` in our case), also if you add environment variables 
+each python project [[5]](https://docs.python.org/3/library/venv.html). 
+All installed packages will be stored in the directory of the local environment 
+(`venv` in our case). If you add environment variables 
 (like `FLASK_APP` or `DATABASE_URL`) they will not conflict with other 
-applications on the machine:
+applications on the computer:
 
 ```shell script
 cd server
@@ -158,13 +156,13 @@ source venv/bin/activate
 ```
 
 After executing `source` command `(venv)` should be added to your 
-terminal prompt. That means that your terminal session now 
+terminal prompt. That means that your terminal session is
 connected to this virtual environment and some magic will 
 happen (like storing python packages in the `venv` directory)
 
 > (venv) Babichevs-MacBook-Pro:server obabichev$
 
-You always can close environment by command:
+You can always close the environment using the following command:
 
 ```shell script
 deactivate
@@ -172,13 +170,13 @@ deactivate
 
 ### Simple Flask app
 
-That time to write simple server app. I will not cover all the details 
-of Python/Flask development, only details of running and debugging. 
-Already there is Flask Mega Tutorial by Miguel Grinberg [[6]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world) 
+It's now time to implement a simple server application. I will not cover all the details 
+of Python/Flask development, only the details of running and deploying. 
+There is already a Flask Mega Tutorial by Miguel Grinberg [[6]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world) 
 that covers many topics related to Flask.
 
-In Flask Mega Tutorial also there is a part about Heroku [[7]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-xviii-deployment-on-heroku), 
-but I have a goal to make it more detailed. 
+In the Flask Mega Tutorial there is a part about Heroku [[7]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-xviii-deployment-on-heroku), 
+but I would like to provide more details. 
 
 From many perspectives, you can think about this article like 
 a React extension for Flask Mega Tutorial.
@@ -190,8 +188,10 @@ pip install flask
 pip freeze > requirements.txt
 ```
 
-Actually, that is enough to create any `.py` file 
-and write a code that will create instance of Flask inside. 
+[](WE STOPPED HERE ON THE LAST LESSSON!!)
+
+You can create a `.py` file with any name 
+and write a code inside that will create an instance of the Flask server. 
 But I used to make it as a separate module to be able 
 to import it from anywhere. The main difference now, 
 file with the code should be named as `__init__.py`.
@@ -234,7 +234,7 @@ We should get result:
 
 > Hallo, Oleg
 
-Your files structure at the current moment should look like this:
+Your files structure at the moment should look like this:
 
 ```shell script
 my-awesome-blog
@@ -941,6 +941,48 @@ def get_current_user():
     return jsonify(None)
 ```
 
+After creating the file with routes I can update `__init.py__` file to make the 
+app working. I removed the `index` route I added some time ago and added imports 
+of new files. This file has the following content now: 
+
+```python
+from flask import Flask
+from flask_login import LoginManager
+from flask_sqlalchemy import SQLAlchemy
+
+app = Flask(__name__)
+app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:5434/mablog'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+app.config['SECRET_KEY'] = 'this secret should not be in the code and we will remove it from here'
+
+db = SQLAlchemy(app)
+login = LoginManager(app)
+
+from app import models
+from app import routes
+```
+
+Now we can run the app and check that everything works.
+
+### Test services with Postman
+
+When you have JSON API it is getting more complicated 
+to test services. For simple requests, the terminal application `curl` might 
+be used, but when you have lots of services (and many of them have POST 
+or PUT methods) it might be not too useful. I prefer to use Postman 
+application [[17]](https://www.postman.com/) where you can create and call 
+requests, and organize them with folders. For example, I can check 
+the `register` service as follows:
+
+![36](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-05-02_at_11.02.43.png)
+
+If you don't want to install Postman and just need to 
+check that everything works well you can use the `curl` command:
+
+```shell script
+curl --header "Content-Type: application/json" --request POST --data '{"username": "test user 2","email": "test2@test.test","password": "test"}' http://localhost:5000/api/register
+```
+
 ## Dockerize Flask app
 
 
@@ -964,211 +1006,12 @@ def get_current_user():
 * [[14] PyPi: psycopg2-binary](https://pypi.org/project/psycopg2-binary/)
 * [[15] The Flask Mega-Tutorial Part V: User Login](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-v-user-logins)
 * [[16] Flask-Login](https://flask-login.readthedocs.io/en/latest/)
+* [[17] Postman](https://www.postman.com/)
 * [[] Installing psycopg2-binary with Python:3.6.4-alpine doesn't work #684](https://github.com/psycopg/psycopg2/issues/684)
 * [[] Build and run your image](https://docs.docker.com/get-started/part2/)
 * [[] docker run (command line reference)](https://docs.docker.com/engine/reference/commandline/run/)
 * [[] About Alpine Linux](https://alpinelinux.org/about/)
------------------------------------------------
 
 
 
    
-
-
-my-awesome-blog/docker-compose.yml
-```yaml
-version: '3.7'
-
-services:
-  db:
-    image: postgres:12-alpine
-    volumes:
-      - postgres_data:/var/lib/postgresql/data/
-    environment:
-      - POSTGRES_USER=oob
-      - POSTGRES_PASSWORD=oob
-      - POSTGRES_DB=oob
-    ports:
-      - 5433:5432
-```
-
-And we can connect via ide or any other tool
-
-https://blog.timescale.com/tutorials/how-to-install-psql-on-mac-ubuntu-debian-windows/
-
-For example via psql:
-
-```shell script
-psql postgresql://mablog@localhost:5433/mablog
-```
-
-or
-
-```shell script
-docker-compose exec db psql postgresql://mablog@localhost:5432/mablog
-```
-
-enter the password `mablog`
-
-and see welcome from database 
-```shell script
-mablog=# 
-```
-just type `\q` to exit
-
-
-```shell script
-pip install flask-sqlalchemy
-#pip install Flask-Script
-pip install flask-migrate
-pip freeze > requirements.txt
-```
-
-models.py
-```python
-from app import db
-
-
-class User(db.Model):
-    __tablename__ = 'user'
-
-    id = db.Column(db.BigInteger, primary_key=True)
-    username = db.Column(db.String(64), index=True, unique=True)
-    email = db.Column(db.String(120), index=True, unique=True)
-    password_hash = db.Column(db.String(128))
-
-    def __repr__(self):
-        return '<User {}>'.format(self.username)
-
-    @property
-    def serialize(self):
-        return {
-            'id': self.id,
-            'username': self.username,
-            'email': self.email,
-        }
-```
-
-\_\_init\_\_.py
-```python
-from flask import Flask, jsonify
-from flask_migrate import Migrate
-from flask_sqlalchemy import SQLAlchemy
-
-app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:5433/mablog'
-
-db = SQLAlchemy(app)
-
-migrate = Migrate(app, db)
-
-from app.models import User
-
-
-@app.route('/')
-def index():
-    return "Welcome to My Awesome Blog!!!!!!!!"
-
-
-if __name__ == "__main__":
-    app.run(host="0.0.0.0", debug=True)
-```
-
-```shell script
-flask db init
-
-pip install psycopg2-binary
-
-flask db migrate -m "first migration"
-
-flask db upgrade
-```
-
-Now we cat try to create entity of the user
-
-let run python console 
-
-```shell scirpt
-python
-```
-
-```shell script
->>> from app import db
->>> from app.models import User
->>> user = User(username="username", email="email", password_hash="password")
->>> db.session.add(user)
->>> db.session.commit()
-```
-
-And to check that the user was save in db:
-
-```python
->>> User.query.all()
-```
-
-
-## Run in docker-compose
-
-https://medium.com/@trstringer/debugging-a-python-flask-application-in-a-container-with-docker-compose-fa5be981ec9a
-
-So, we can try to run the app inside container.
-
-To do that first of all we need Dockerfile
-
-
-```dockerfile
-FROM python:3.8.1-slim-buster
-
-RUN apt-get update -y
-RUN apt-get install -y python-pip python-dev build-essential
-
-ENV PYTHONDONTWRITEBYTECODE 1
-ENV PYTHONUNBUFFERED 1
-
-WORKDIR /usr/src/app
-
-RUN pip install --upgrade pip
-COPY ./requirements.txt /usr/src/app/requirements.txt
-RUN pip install -r requirements.txt
-
-ADD . /usr/src/app/
-```
-
-Then we can add new service in docker-compose.yml
-
-```yaml
-version: '3.7'
-
-services:
-  db:
-    image: postgres:12-alpine
-    environment:
-      - POSTGRES_USER=mablog
-      - POSTGRES_PASSWORD=mablog
-      - POSTGRES_DB=mablog
-    ports:
-      - 5433:5432
-  web:
-    build:
-      context: server
-      dockerfile: Dockerfile
-    volumes:
-      - ./server/app:/usr/src/app/app
-    command: python app/__init__.py
-    ports:
-      - 5000:5000
-    environment:
-      - APP_SETTINGS=config.DevelopmentConfig
-      - DATABASE_URL=postgresql://oob:oob@db:5432/oob
-      - FLASK_APP=app.py
-      - SECRET_KEY=this-is-a-magic-string-and-i-dont-know-why-i-need-it
-      - FLASK_DEBUG=true
-```
-
-But we have a problem, we have one configuration on the local machine and another
-in the docker container.
-
-
-about entrypoint https://levelup.gitconnected.com/dockerizing-a-flask-application-with-a-postgres-database-b5e5bfc24848
-
-### Add configs
