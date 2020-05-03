@@ -1284,6 +1284,214 @@ We will move to the next part better and combine our containers with docker-comp
 
 ### docker-compose
 
+Docker-compose [[28]](https://docs.docker.com/compose/) can help to run systems with 
+multiple containers. You just need to write the configuration of this system and 
+docker-compose will do the next. It is also quite simple and I usually choose 
+it for local development. 
+
+Since the current moment, I will expect that we run containers via docker-compose, 
+so you can delete existing containers. You can remove All existing container 
+with the following commands:
+
+```shell script
+docker stop `docker ps -q`
+docker rm `docker ps -a -q`
+```
+
+We need to create the `docker-compose.yml` file in the root of the project 
+(not in the `server` directory). In the future, we will add also 
+frontend, but now we need only DB and backend. In this file for each container, 
+we need to describe how to run this container. Let's start from the base structure 
+of this file: 
+
+
+```yaml
+version: '3.7'
+
+services:
+  db:
+  server:
+```
+
+Each container is present as an item in the list `services` in this file. 
+In our case, we have two containers which I called `db` and `server`.
+
+Service`db` will be based on image `postgres:12-alpine` we already used for 
+creating DB. Block `environment` allows adding environment variables to the container, 
+and block `ports`  allows forwarding ports to have direct access from the host.
+
+```yaml
+  db:
+    image: postgres:12-alpine
+    environment:
+      - POSTGRES_USER=mablog
+      - POSTGRES_PASSWORD=mablog
+      - POSTGRES_DB=mablog
+    ports:
+      - 5433:5432
+```
+
+Server configuration will be a bit more complicated:
+
+```yaml
+  server:
+    build:
+      context: server
+      dockerfile: Dockerfile
+    command: flask run --host=0.0.0.0
+    depends_on:
+      - db
+    ports:
+      - 5002:5000
+    environment:
+      - APP_SETTINGS=config.DevelopmentConfig
+      - DATABASE_URL=postgresql://mablog:mablog@db:5432/mablog
+      - SECRET_KEY=it-is-a-secret-key
+      - FLASK_ENV=development
+    volumes:
+      - ./server/app:/usr/src/app/app
+      - ./server/migrations:/usr/src/app/migrations
+```
+
+Here we don't provide the existing image, but add `build` block where 
+describe how to build image for the container. Parameter `context` is the path 
+to the directory where to build the image (it's important because 
+inside our Dockerfile we used relative paths and it should be built 
+from `server` directory) and parameter `dockerfile` should contain 
+the name of dockerfile.
+
+In the `command` block we can specify the command that should be run inside the 
+container (it is `flask run` as before, but we need to specify the host to 
+`0.0.0.0` to make it available from outside of the container).
+
+Block `depends_on` takes the list of services that should be run before running 
+this container. For us, it is a way to say that server should not be launched 
+until the database started to work.
+
+Using volume `block` might be looking tricky at first glance but it makes sense. 
+With the `volume` block we can forward andy host directory in the container. 
+When we say in volumes `./server/app:/usr/src/app/app` it means that container 
+instead of  `/usr/src/app/app` directory  should use  the `./server/app` directory 
+from the host. It allows for us to use hot reloading when we edit files 
+locally but the server inside the container sees these changes and reloads. 
+The same for the migrations directory; when we forward it in the container 
+we can generate migrations from the container and it will be saved on the host.
+
+You also may notice changes in the database URL for the server app. 
+Not it has the value `mablog:mablog@db:5432/mablog`. The domain was 
+changed from `localhost` to `db` (name of the service with DB). 
+As I already told before containers know nothing about each 
+other, but docker-compose creates for them virtual network and manages 
+urls. So it knows that url with domain `db` should be moved to the `db` 
+service.
+
+If you were working from the `server` directory change it 
+to the root directory of the project:
+
+```shell script
+cd ..
+```
+
+Now you should be in the directory that contains `docker-compose.yml`. 
+Here you can run the following command:
+
+```yaml
+docker-compose up --build
+```
+
+That's all, now you should have a working server with a database. 
+Let's check that the containers were created:
+
+```shell script
+docker ps
+```
+
+I have the following result:
+
+![38](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-05-03_at_18.37.09.png)
+
+You also can check that authorization is working, 
+but be careful the server is on the port 5002 now.
+
+As I mentioned above we can change files in the container and these 
+changes will reflect on the host files. It is useful when you need 
+to create new migrations. Actually you can run any commands inside 
+containers, let's play a bit with it.
+
+### Creating migrations from container
+
+Do you remember how we were executing bash commands inside container 
+with the `docker exec`?. Let's execute a simple command `ls` in the container 
+with the server. Just run `docker ps` and find the id of the container with the 
+server (for me it is `2edda1ff8610`). After that we can run the following command:
+
+```shell script
+docker exec -it 2edda1ff8610 ls
+```
+
+You should get the following result, actually files of the project:
+
+> __pycache__       config.py         migrations
+> app               manage.py         requirements.txt
+
+The small problem that docker-compose generates containers automatically and 
+it is not always too comfortable to look for a required container, but docker-compose 
+provides a wrapper around the docker exec which allows using of service names 
+from docker-compose.yml file instead of container ids:
+
+```shell script
+docker-compose exec server ls
+```
+
+As you can see here the `server` name of the server is used. 
+And you should get the same result.
+
+Let's clean current containers. You can do that manually as before, 
+but I suggest to use the command `down` of the docker-compose to clean containers 
+related to the current project (actually to the current docker-compose.yml):
+
+```shell script
+docker-compose down
+```
+
+After that, we will remove existing migrations to simulate 
+the situation when we have no migrations yet (but don't delete the `migrations` directory 
+itself, because we use it in dockerfile, delete only the content):
+
+```shell script
+rm -rf server/migrations/*
+```
+
+Restart the docker-compose to run the server and database:
+
+```shell script
+docker-compose up --build
+```
+
+You can check that the database is empty and don't have the table `user` at all. 
+We have no migrations now also. We can start to create it using containers. 
+First of all, we need to run `db init` command from `manage.py`:
+
+```shell script
+docker-compose exec server python manage.py db init
+```
+
+It should create the migration configs inside your project. 
+After that we need to create a migration and upgrade the database:
+
+```shell script
+docker-compose exec server python manage.py db migrate -m "user table"
+docker-compose exec server python manage.py db upgrade
+```
+
+If you check project files you should find created migration. 
+In the database, you should find the `user` table.
+
+Since this moment you don't need to run the project locally in most cases. 
+One thing I keep locally is the `venv` directory with the python environment because 
+I use it in PyCharm. Maybe one day I will try to fix it, but now it doesn't 
+take too much effort for me.
+
 ## Links
 
 * [[1] Google App Engine vs Heroku](https://stackshare.io/stackups/google-app-engine-vs-heroku)
@@ -1313,8 +1521,4 @@ We will move to the next part better and combine our containers with docker-comp
 * [[25] About Alpine Linux](https://alpinelinux.org/about/)
 * [[26] Installing psycopg2-binary with Python:3.6.4-alpine doesn't work #684](https://github.com/psycopg/psycopg2/issues/684)
 * [[27] Build and run your image](https://docs.docker.com/get-started/part2/)
-
-
-
-
-   
+* [[28] Overview of Docker Compose](https://docs.docker.com/compose/)
