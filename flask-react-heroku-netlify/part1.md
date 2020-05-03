@@ -1122,9 +1122,165 @@ directory `.gitignore` file with the following content
 .envrc
 ```
 
+Files structure at the current moment looks like this:
+
+```shell script
+.
+├── client
+└── server
+    ├── .envrc
+    ├── .gitignore
+    ├── app
+    │   ├── __init__.py
+    │   ├── models.py
+    │   └── routes.py
+    ├── config.py
+    ├── manage.py
+    ├── migrations
+    │   ├── README
+    │   ├── alembic.ini
+    │   ├── env.py
+    │   ├── script.py.mako
+    │   └── versions
+    │       └── f62579cae873_users_table.py
+    └── requirements.txt
+```
+
 It is already much better than before, but we will go deeper and dockerize our application.
 
 ### Dockerfile
+
+We already tried to create a docker container using an image, but that image was 
+from DockerHub. For our server, we will have to create our own image. The common way to 
+create own container is by extending already existing containers.
+
+I already mention that we can think about containers like about self-sufficient 
+operation systems or like about lightweight virtual machines. Images we use to 
+run containers are like blueprints of operation systems and simplistic contain 
+files of this operating system and other metadata (actually docker works over 
+lxc [[21]](https://docs.docker.com/engine/faq/)[[22]](https://linuxcontainers.org/lxc/documentation/), 
+but it is not critical information for applications development). 
+
+To extend the existing image we can use Dockerfile [[23]](https://docs.docker.com/engine/reference/builder/). 
+It is the file with special format where you describe what do you want 
+to see in the new image. In order to get an image that might 
+be used for creating containers, you need to build this Dockerfile with docker.
+
+Let's create file `server/Dockerfile` and add there the following line:
+
+```dockerfile
+FROM python:3.7.7-alpine
+```
+
+Each line in dockerfile contains a command and arguments 
+for this command. Here we use the command `FROM`. This command allows 
+setting the base image that we will extend. For this image, I choose 
+the `python:3.7.7-alpine` [[24]](https://hub.docker.com/_/python) which 
+is actually lightweight alpine linux [[25]](https://alpinelinux.org/about/) 
+with installed python.
+
+After that, we will install some packages. 
+The `RUN` command allows running any bash command in the operating system 
+we extend. The changes this command made will be stored inside the 
+image. It means, that when you are creating containers from this 
+image you will not need to install these packages again:
+
+```dockerfile
+RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
+```
+
+We need to install these packages because some libraries build `psycopg2` and 
+require related tools for it. Look [here [26]](https://github.com/psycopg/psycopg2/issues/684) 
+for more details.
+
+In the next line, we will call command `WORKDIR`. With this command, 
+we can choose the directory where work. We need it for the following commands:
+
+```dockerfile
+WORKDIR /usr/src/app
+```
+
+Now we can start to copy files of the project into the image. 
+To copy files from host to image we can use command `COPY <host_path> <image_path>`. 
+Let's copy the file `requirements.txt` and install all 
+the dependencies inside the image:
+
+```dockerfile
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+```
+
+In this case, the file `requirements.txt` will be copied in 
+the directory `/usr/src/app` in the image, because we specified 
+it with `WORKDIR` earlier.
+
+After that, we will copy the rest files of the project:
+
+```dockerfile
+COPY config.py config.py
+COPY manage.py manage.py
+COPY migrations migrations
+COPY app app
+```
+
+The whole dockerfile looks like this now:
+
+```dockerfile
+FROM python:3.7.7-alpine
+
+RUN apk update && apk add postgresql-dev gcc python3-dev musl-dev
+
+WORKDIR /usr/src/app
+
+COPY requirements.txt requirements.txt
+RUN pip install -r requirements.txt
+
+COPY config.py config.py
+COPY manage.py manage.py
+COPY migrations migrations
+COPY app app
+```
+
+It's time to create a new image using the dockerfile [[27]](https://docs.docker.com/get-started/part2/). 
+Let's run the `docker build` command in the terminal:
+
+```shell script
+docker build --tag maserver .
+```
+
+I also added a tag to the image to be able to find it among other images.
+
+If you got the following result everything goes well:
+
+> Successfully built 25da7fc52798
+> Successfully tagged maserver:latest
+
+The next step is to run the container using the created image:
+
+```shell script
+docker run --rm maserver flask run
+```
+
+You can see the usage of the command `docker run` to run a container. 
+The flag `--rm` means that this container should be deleted when it 
+stops to work. `maserver` is the name of the image. `flask run` is the command 
+we run inside container (this command might be specified with command `CMD` inside 
+dockerfile, but we will use another command on production, so I separated it).
+
+> File "/usr/local/lib/python3.7/os.py", line 681, in __getitem__
+>     raise KeyError(key) from None
+> KeyError: 'APP_SETTINGS'
+
+I got an error related to `APP_SETTINGS`. But it is good for now because this error 
+means that we didn't provide environment variable `APP_SETTINGS`, and we really didn't 
+do that. From the other side, it means that the container was started and the Flask 
+app tried to launch.
+
+We can provide all the required environment variables and make this container 
+working, but it is not comfortable to do that every time, and we will have 
+problems with connecting it to database (because by default container knows 
+nothing about other containers and we will need to create a network for them). 
+We will move to the next part better and combine our containers with docker-compose.
 
 ### docker-compose
 
@@ -1150,11 +1306,14 @@ It is already much better than before, but we will go deeper and dockerize our a
 * [[18] Configuration Handling](https://flask.palletsprojects.com/en/1.1.x/config/)
 * [[19] Flask Config File - 'DEBUG=True' Do Nothing (StackOverflow)](https://stackoverflow.com/questions/45896649/flask-config-file-debug-true-do-nothing)
 * [[20] Debug Mode not working when adding it as config (Reddit)](https://www.reddit.com/r/flask/comments/7xt68o/af_debug_mode_not_working_when_adding_it_as_config/)
+* [[21] Docker frequently asked questions](https://docs.docker.com/engine/faq/)
+* [[22] Linux containers documentation](https://linuxcontainers.org/lxc/documentation/)
+* [[23] Dockerfile reference](https://docs.docker.com/engine/reference/builder/)
+* [[24] Python DockerHub](https://hub.docker.com/_/python)
+* [[25] About Alpine Linux](https://alpinelinux.org/about/)
+* [[26] Installing psycopg2-binary with Python:3.6.4-alpine doesn't work #684](https://github.com/psycopg/psycopg2/issues/684)
+* [[27] Build and run your image](https://docs.docker.com/get-started/part2/)
 
-* [[] Installing psycopg2-binary with Python:3.6.4-alpine doesn't work #684](https://github.com/psycopg/psycopg2/issues/684)
-* [[] Build and run your image](https://docs.docker.com/get-started/part2/)
-* [[] docker run (command line reference)](https://docs.docker.com/engine/reference/commandline/run/)
-* [[] About Alpine Linux](https://alpinelinux.org/about/)
 
 
 
