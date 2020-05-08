@@ -181,22 +181,20 @@ but I would like to provide more details.
 From many perspectives, you can think about this article like 
 a React extension for Flask Mega Tutorial.
 
-First of all, we need to install Flask:
+Firstly you need to install Flask:
 
 ```shell script
 pip install flask
 pip freeze > requirements.txt
 ```
 
-[](WE STOPPED HERE ON THE LAST LESSSON!!)
-
 You can create a `.py` file with any name 
-and write a code inside that will create an instance of the Flask server. 
-But I used to make it as a separate module to be able 
-to import it from anywhere. The main difference now, 
-file with the code should be named as `__init__.py`.
+and write a code inside it that will create an instance of the Flask server. 
+I usually create it as a separate module to be able 
+to import it from anywhere. In order to do that the python file 
+should be called `__init__.py`.
 
-Let's create a file `server/app/__init__.py` with the next content:
+Now let's create a file `server/app/__init__.py` with the following content:
 
 ```python
 from flask import Flask
@@ -209,13 +207,14 @@ def index():
     return "Welcome to My Awesome Blog"
 ```
 
-Now you can run this server by the command from `server` directory:
+You can now run this server with the following 
+command from the `server` directory:
 
 ```shell script
 flask run
 ```
 
-And get a similar result:
+You should get a similar result:
 
 > * Environment: production
 >   WARNING: This is a development server. Do not use it in a production deployment.
@@ -223,14 +222,14 @@ And get a similar result:
 > * Debug mode: off
 > * Running on http://127.0.0.1:5000/ (Press CTRL+C to quit)
 
-Looks like server started without problems and if we open 
-URL like this:
+It looks like the server started without any problems and if we open 
+the following URL:
 
 ```
 http://localhost:5000/?name=Oleg
 ```
 
-We should get result:
+We will get the following result:
 
 > Hallo, Oleg
 
@@ -246,27 +245,31 @@ my-awesome-blog
         └── __init__.py
 ```
 
-And the architecture of the app is the simplest at the current moment. We have only a Flask app that we run locally on the port 5000:
+The architecture of the app is quite simple. 
+We have only a Flask app that we run locally on port 5000:
 
 ![20](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.03.simple-flask-structure2.png)
 
 #### Add environment in PyCharm
 
-If you use PyCharm and open the project with it you can get a 
-small problem that IDE say you `Unresolved reference 'flask'`. 
-Here you can say that `I installed it 3 minutes ago` and you 
-will be right but IDE knows nothing about it.
+If you open the project with PyCharm you might get 
+the following error `Unresolved reference 'flask'`. 
+It might be confusing because Flask was installed a few minutes ago,
+but in fact IDE doesn't recognize this installation.
 
 ![14](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-24_at_20.33.25.png)
 
-The problem that IDE may use another environment (global one for example) 
-and you need to choose the local environment for this project implicitly.
+The problem with the IDE is that may use another environment 
+(the global one for example). You need to select the local 
+environment for this project.
 
-To solve this problem you need to open PyCharm Preferences and find the `Project interpreter` tab:
+To solve this problem you need to open PyCharm Preferences and 
+find the `Project interpreter` tab:
 
 ![15](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-24_at_20.36.51.png)
 
-On this tab, you need to press the `Add` button (on the right side from the current interpreter) 
+On this tab, you need to press the `Add` button (on the right side 
+from the current interpreter) 
 and select `bin/python` file from your project interpreter:
 
 ![17](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-24_at_20.40.54.png)
@@ -275,37 +278,37 @@ After that IDE will use dependencies from the local environment.
 
 
 ## Adding database
+ 
+One of the simplest methods to get a database is to install 
+it in the system, but I don't remember the last time I did it.
+It is inconvenient if you need to install certain databases on your computer, 
+especially if you need different databases for different projects or if you need 
+to share the project with other people.
 
-It is a good moment to start to talk about the adding database. 
-One of the simplest methods to get a database is just to install 
-it on the machine. But actually I already don't remember when I 
-was doing it last time. It is not too comfortable because you 
-need to install certain DB on you machine, set up users, passwords, 
-and so on. What if you need different databases for different 
-projects, or share the project with other people. 
+Docker avoids this problems. If you have never 
+tried Docker (or containerization in general) I suggest it because 
+would save you lots of time in 
+the future (which will make you more productive as a developer).  
 
-And here we come to the using of Docker. If you have never 
-tried Docker (or containerization in general) I suggest spending 
-time investigating this question cause it will save much time in 
-the future (what will make you more productive as a developer).
-
-To make the mental model simpler you can think that on the basic 
-level docker operates with images and containers. Where each container 
+To make the mental model simpler imagine that docker operates with images 
+and containers. Where each container 
 is a small operation system with its own file system, environment, 
-and run applications. And the image is the description of what should 
+and running applications. The image would be the description of what should 
 be inside the container. Docker takes an image as an input and runs 
 a container with a certain operating system and content.
 
 You can create an image on your own (and we will do that later) 
-or find it on Docker Hub [[8]](https://hub.docker.com/). I will create a container with the 
-Postgres database and in order to do that, I will use the official 
-image that you can find [here [9]](https://hub.docker.com/_/postgres). There you can find all the details 
-about how to use it.
+or find an existing one on Docker Hub [[8]](https://hub.docker.com/). 
+I will create a container with the 
+Postgres database. In order to do that, I will use the official 
+image that you can find [here [9]](https://hub.docker.com/_/postgres). 
+You will find all the details on how to use it on the website.
 
 ### Run Postgres in docker
 
-If you have no docker on your machine you can download it from the official web site [[10]](https://www.docker.com/get-started). To check 
-that it works correctly we can run the command:
+If you have no docker on your computer you can download it from the official web 
+site [[10]](https://www.docker.com/get-started). To check 
+if it works correctly you can run the command:
 
 ```shell script
 docker --version
@@ -315,55 +318,57 @@ And get a result similar to this:
 
 > Docker version 19.03.5, build 633a0ea
 
-I will simply copy the command to create a Postgres container 
-from Postgres` Docker Hub page:
+You can simply copy the command to create a Postgres container 
+from the Postgres Docker Hub page:
 
 ```shell script
 docker run --name some-postgres -e POSTGRES_PASSWORD=secret -d postgres
  ```
 
-After executing this command docker returned me the next result:
+After executing this command the docker should give you a similar result:
 
 > 590eaa4cfc3ab5e970bb7583f55a1ea287e8e14a2a974ea328c97c51e004dd16
 
-At first glance, it might be looking weird but actually that is 
-the id of created container what means that it was created successfully. 
+At first glance, it might look weird but it's actually 
+the id of the created container which means that it was created successfully. 
 Congratulations, you have your own container with Postgres database 
 and if you rerun the last command you will get more, and more, and more...
 
-But now we have a question of how to interact with it. The problem that 
-container works inside docker and we have not direct access to it:
+You're probably now wondering how we can interact with it. The problem is that
+the container works inside docker and we don't have direct access to it:
 
 ![23](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.04.container-with-postgres2.png)
 
-Of course, docker provides instruments to work with containers. The simple thing we can do 
+Of course, docker provides instruments to work with containers. The simplest thing we can do 
 is to check what containers are working at the current moment:
 
 ```shell script
 docker ps
 ```
 
-As you can see on the screenshot I have only one container created some minutes ago:
+On the screenshot below you will be able to see a container that I created a few minutes ago.
 
 ![24](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-25_at_11.31.24.png)
 
-In this info, you can see id (short version), name of source image, what command run inside, 
-when it was created, used ports, and the name.
+In this info, you can see its id (short version), the name of the source image, which command
+was used, when it was created, the ports it used, and its name.
 
 ```shell script
 docker exec -ti 590eaa4cfc3a psql -U postgres
 ```
 
 Let's look at this command in detail. The command `docker exec` allows 
-running any command inside the container (do you remember 
+the running of any command inside the container (do you remember 
 that each container is like a small self-sufficient operation system?).
 
 Flag `-t` says that docker should add `pseudo-TTY`, in other words, 
-pseudo-terminal instead of row input (try to run it without this 
-flag and you will feel the difference). Flag `-i` means interactive 
+pseudo-terminal instead of using the row input. Try to run it without this 
+flag and you will see the difference. Flag `-i` means interactive 
 and without it, your interaction will be finished after executing 
 the initial command (for example you will not be able to 
 execute `select 1;` inside psql run in docker) [[11]](https://docs.docker.com/engine/reference/commandline/exec/). 
+
+[](WE STOPPED HERE)
 
 After then we should put the id of the container and then command we want 
 to run. In this case, it is psql command [[12]](https://www.postgresql.org/docs/9.0/app-psql.html).
