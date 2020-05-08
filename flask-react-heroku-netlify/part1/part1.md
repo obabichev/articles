@@ -188,7 +188,197 @@ pip install flask
 pip freeze > requirements.txt
 ```
 
-[](WE STOPPED HERE ON THE LAST LESSSON!!)
+[](WE STOPPED HERE ON THE LAST LESSSON!!)## Introduction
+                                         
+                                         This series of articles is written to learn how to combine 
+                                         Flask and React in order to create the best blog in the world.
+                                         
+                                         There are currently many tutorials about 
+                                         Flask, React, Docker, and Heroku. Many of them 
+                                         were helpful when I started with this stack. 
+                                         But the problem I found is that these tutorials usually concentrate 
+                                         only on a small part of the whole process I will talk about.
+                                         
+                                         This tutorial will be about what I wanted to read 
+                                         a few months ago when I created my first project with Flask. 
+                                         The main goal of this tutorial is to:  
+                                         
+                                         - to show how to develop a full-stack application with React and Flask locally; 
+                                         - to practice deploying these kinds of applications on cloud 
+                                         services like Heroku and Netlify;
+                                         
+                                         
+                                         
+                                         ## Architecture overview
+                                         
+                                         
+                                         First off, we need to understand what services and technologies we will 
+                                         use to know the scope we want to cover. If you've never seen these terms in 
+                                         your life do not worry, we will look at all of them in detail later.
+                                         
+                                         We will differentiate two configurations: local and production. 
+                                         
+                                         ### Local configuration
+                                         
+                                         Requirements to the local configuration:
+                                         
+                                         - It should be available to run locally of course;
+                                         - The development process should be comfortable;
+                                         - Set up of the configuration should not take too much time on a 
+                                         new machine (or for new developer);
+                                         
+                                         ![13](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.02.high-overview-local.png)
+                                         
+                                         To achieve these requirements we will use docker to run each 
+                                         component of the system (backend, frontend, database,...) in isolated containers. 
+                                         This approach will allow the whole system to run and stop with just a few commands in the 
+                                         terminal. Also, this approach allows running different projects without 
+                                         conflicts (like the same ports, environment variables and so on).
+                                         
+                                         ### Production configuration
+                                         
+                                         Requirements to the production configuration:
+                                         
+                                         - It should work from the Internet;
+                                         - We should not spend much money on it (ideally none at all);
+                                         - Updating the system should not take lots of effort;
+                                         
+                                         ![12](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/high-overview.png)
+                                         
+                                         There are plenty of cloud services that provide a 
+                                         possibility to deploy your application at the moment. The most popular ones 
+                                         are Amazon AWS, Microsoft Asure and Google Cloud. But for my pet projects, I choose Heroku 
+                                         as an alternative to these services because of  its nice free plan for small 
+                                         projects and simple configuration/deploy processes.
+                                         
+                                         Of course, there are limitations and the biggest problems are the instances 
+                                         on Heroku that go to sleep after about half an hour of inactivity. On the 
+                                         free plan, you do not have to provide your banking information at all.  
+                                         I recommend looking at these cloud comparisons on Stackshare 
+                                         [[1]](https://stackshare.io/stackups/google-app-engine-vs-heroku)[[2]](https://stackshare.io/stackups/amazon-ec2-vs-heroku)[[3]](https://stackshare.io/stackups/heroku-vs-microsoft-azure), 
+                                         and decide if you want another cloud and if this tutorial is appropriate or not.
+                                         
+                                         We will use the service Netlify where we will publish the built 
+                                         React app. It's useful because we can publish any static files there. 
+                                         Netlify will serve it inside it's own CDN and it will proxy API requests to the backend.
+                                         
+                                         ## Create Flask application
+                                         
+                                         It was quite a long introduction, so let's get started. 
+                                         In this section, we will create a simple backend app to check that 
+                                         everything works well. 
+                                         
+                                         ### Project structure
+                                         
+                                         Let's start from the opening terminal and create a new 
+                                         directory for the app:
+                                         
+                                         ```shell script
+                                         mkdir my-awesome-blog
+                                         cd my-awesome-blog
+                                         ```
+                                         
+                                         In this directory, we will create git repository to store 
+                                         the project on GitHub and deploy it in the clouds later:
+                                         
+                                         ```shell script
+                                         git init
+                                         ```
+                                         
+                                         You should see something like this:
+                                         
+                                         > Initialized empty Git repository in /Users/obabichev/development/my-awesome-blog/.git/
+                                         
+                                         Directly in the root directory, we will store files related to 
+                                         the whole project (like `docker-compose.yml`). 
+                                         For the client-side part with React and server-side part with 
+                                         Flask, we will create folders `client` and `server` respectively.
+                                         
+                                         
+                                         ```shell script
+                                         mkdir server
+                                         mkdir client
+                                         ```
+                                         
+                                         ### Python installation
+                                         
+                                         For the next step, you will need to install python 3 on your computer (if it's not installed 
+                                         yet). You can check the version of python using the command:
+                                         
+                                         ```shell script
+                                         python --version
+                                         ```
+                                         
+                                         If the result looks like this:
+                                         
+                                         > Python 2.7.10
+                                         
+                                         It means that you have python 2. 
+                                         There is a chance that you have installed python 3, 
+                                         but it is available using the `python3` command. Use the following 
+                                         command to check it:
+                                         
+                                         ```shell script
+                                         python3 --version
+                                         ```
+                                         
+                                         I got the following result on my computer:
+                                         
+                                         > Python 3.7.7
+                                         
+                                         If you already have installed python 3 you can continue to the next 
+                                         step. Otherwise, you will have to install it [[4]](https://www.python.org/downloads/).
+                                         
+                                         ### Python environment
+                                         
+                                         We can now open the server directory and create a python virtual 
+                                         environment there. I suggest creating a separate environment for 
+                                         each python project [[5]](https://docs.python.org/3/library/venv.html). 
+                                         All installed packages will be stored in the directory of the local environment 
+                                         (`venv` in our case). If you add environment variables 
+                                         (like `FLASK_APP` or `DATABASE_URL`) they will not conflict with other 
+                                         applications on the computer:
+                                         
+                                         ```shell script
+                                         cd server
+                                         python3 -m venv venv
+                                         source venv/bin/activate
+                                         ```
+                                         
+                                         After executing `source` command `(venv)` should be added to your 
+                                         terminal prompt. That means that your terminal session is
+                                         connected to this virtual environment and some magic will 
+                                         happen (like storing python packages in the `venv` directory)
+                                         
+                                         > (venv) Babichevs-MacBook-Pro:server obabichev$
+                                         
+                                         You can always close the environment using the following command:
+                                         
+                                         ```shell script
+                                         deactivate
+                                         ```
+                                         
+                                         ### Simple Flask app
+                                         
+                                         It's now time to implement a simple server application. I will not cover all the details 
+                                         of Python/Flask development, only the details of running and deploying. 
+                                         There is already a Flask Mega Tutorial by Miguel Grinberg [[6]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world) 
+                                         that covers many topics related to Flask.
+                                         
+                                         In the Flask Mega Tutorial there is a part about Heroku [[7]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-xviii-deployment-on-heroku), 
+                                         but I would like to provide more details. 
+                                         
+                                         From many perspectives, you can think about this article like 
+                                         a React extension for Flask Mega Tutorial.
+                                         
+                                         First of all, we need to install Flask:
+                                         
+                                         ```shell script
+                                         pip install flask
+                                         pip freeze > requirements.txt
+                                         ```
+                                         
+                                         [](WE STOPPED HERE ON THE LAST LESSSON!!)
 
 You can create a `.py` file with any name 
 and write a code inside that will create an instance of the Flask server. 
@@ -1103,7 +1293,7 @@ export SECRET_KEY=it-is-a-secret-key
 export FLASK_ENV=development
 ```
 
-Unfortunately, it is not possible to set  `FLASK_ENV` via config, so if you want to 
+Unfortunately, it is not possible to set `FLASK_ENV` via config, so if you want to 
 have hot reloading you will have to set this parameter as an environment variable [[19]](https://stackoverflow.com/questions/45896649/flask-config-file-debug-true-do-nothing) [[20]](https://www.reddit.com/r/flask/comments/7xt68o/af_debug_mode_not_working_when_adding_it_as_config/).
 
 After that you only need to execute this file and start server:
