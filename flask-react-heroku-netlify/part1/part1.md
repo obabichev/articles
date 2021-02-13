@@ -361,20 +361,18 @@ Let's look at this command in detail. The command `docker exec` allows
 the running of any command inside the container (do you remember 
 that each container is like a small self-sufficient operation system?).
 
-Flag `-t` says that docker should add `pseudo-TTY`, in other words, 
-pseudo-terminal instead of using the row input. Try to run it without this 
-flag and you will see the difference. Flag `-i` means interactive 
-and without it, your interaction will be finished after executing 
+Flag `-t` says that the docker should add `pseudo-TTY`, in other words, 
+pseudo-terminal instead of using the row input. Try to run this command without it 
+and you will see the difference. Flag `-i` means interactive 
+and without it, your interaction would be finished after executing 
 the initial command (for example you will not be able to 
-execute `select 1;` inside psql run in docker) [[11]](https://docs.docker.com/engine/reference/commandline/exec/). 
+execute `select 1;` with psql inside the container) [[11]](https://docs.docker.com/engine/reference/commandline/exec/). 
 
-[](WE STOPPED HERE)
-
-After then we should put the id of the container and then command we want 
+You then need to put the id of the container and the command you want 
 to run. In this case, it is psql command [[12]](https://www.postgresql.org/docs/9.0/app-psql.html).
 
-After that, you should see the prompt of the Postgres database. 
-To check that it works we can simply run `select 1;` and get the result:
+You should now see the prompt of the Postgres database. 
+To check that it works you can simply run `select 1;` and get the result:
 
 ```shell script
  ?column?
@@ -389,11 +387,12 @@ It works. You can close psql with the command:
 \q
 ```
 
-We know that database is working, but we still have no direct access to it 
-from our machine. If you look at the result of `docker ps` one more 
-time you will see that the port 5432 (actually DB is working on 
-this port) exposed from this container. And you can forward this 
-port into your machine. You just need to add the 
+We know that the database is working, but we still have no direct access to it 
+from our operation system. If you look at the result of `docker ps` one more 
+time, you will see that the port 5432 is exposed from this 
+container (the database works on this port inside
+the container). You can forward this 
+port into your host operation system. You just need to add the 
 flag `-p <port on your machine>:<port on container>` 
 to `docker run` command:
 
@@ -402,40 +401,41 @@ docker run --name forwarded-postgres -e POSTGRES_PASSWORD
 =secret -d -p 5433:5432 postgres
 ```
 
-If you run `docker ps` you will see that there are already two containers 
-(two databases) and port 5432 on one of them forwarded into port 5433 
-on your machine (I specially chose different ports to make it clearer, 
+If you run `docker ps` you will see that there are two containers 
+(two databases). Port 5432 from one of the containers is forwarded into port 5433 
+on your operation system (I specially chose different ports to make it clearer, 
 but you can use 5432 on both sides):
 
 ![25](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-25_at_12.48.29.png)
 
 Now you can use any Postgres client to connect to the 
-DB (psql, pgAdmin, ...). I prefer to use PyCharm possibilities, 
-so for me, it looks like this:
+DB (psql, pgAdmin, ...). I prefer to use PyCharm possibilities. 
+It looks something like this on my end:
 
 ![26](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-25_at_13.38.44.png)
 
 
 ### Remove databases
 
-Now we may have two or more databases and I think we don't want 
-to keep them forever. Docker allows without problem to remove 
-existing containers. To do that you need firstly stop the container 
-and then remove. Bot commands look like:
+Now we may have two or more databases and we probably don't want 
+to keep them forever. 
+Docker allows the removal of existing containers. 
+To do that you need to stop the container 
+and then remove it. Both commands look like:
 
 ```shell script
 docker stop <container id>
 docker rm <container id>
 ```
 
-You can stop and remove all the containers one by one, but in the 
-case when you want to remove all container there is a faster way. 
+You can stop and remove all the containers one by one,
+but if you'd like to remove all the containers there is a faster way. 
 You can run the command `docker ps -q` which will return only ids 
 of containers (but only of running containers) and 
 command `docker ps -q -a` (flag `-a` means all) which will return ids 
-of all containers (even stopped).
+of all containers (even those that were stopped).
 
-With this knowledge we can stop all the containers with the command:
+We can stop all the containers with the following command:
 
 ```shell script
 # be sure that you use ` but not ' or "
@@ -450,33 +450,34 @@ docker rm `docker ps -a -q`
 
 ## Connect server to database
 
-Here I suggest remove all containers if you were playing with 
-its creating in the previous part and create new one by the next command:
+If you created some containers during the previously I suggest removing them and creating
+a new one with the following command:
 
 ```shell script
 docker run --name forwarded-postgres -e POSTGRES_USER=mablog -e POSTGRES_PASSWORD=mablog -e POSTGRES_DB=mablog -d -p 5433:5432 postgres
 ```
 
-The main difference that here I use the word `mablog` as DB name, 
-user name, and user password for the new database.
+The main difference here is that I use the word `mablog` as a database name, 
+user name, and password for the new database.
 
-In this part, we will connect the server that runs on the host 
-machine to the database in docker:
+We will now connect the server that runs on the host 
+machine to the database in the docker:
 
 ![27](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/00.05.flask-with-postgres.png)
 
-I suggest looking at how to work with the database in Flask mega tutorial [[13]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-iv-database) for more details 
-but the main steps will be covered here also.
+If you need more details on how to work with the database you can 
+find it in the Flask mega tutorial [[13]](https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-iv-database)
+We will also cover the main steps here together.
 
-First of all, we need to define our model and create an instance of SQLAlchemy. 
-Let's start from installing `flask-sqlalchemy`:
+We now need to define our model and create an instance of SQLAlchemy. 
+Start by installing `flask-sqlalchemy`:
 
 ```shell script
 pip install flask-sqlalchemy
 pip freeze > requirements.txt
 ```
 
-And creating of file `server/app/models.py` with the next content:
+Then create a file `server/app/models.py` with the following content:
 
 ```python
 from app import db
@@ -502,15 +503,15 @@ class User(db.Model):
 
 ```
 
-As you can see here is a simple model for `user` table with 
-columns `id`, `username`, `email`, and `password`, but it will be 
+As you can see there is a simple model for the `user` table with 
+the following columns `id`, `username`, `email`, and `password`. It would be 
 enough for testing and implementing authorization. If you see 
 errors about import `db` don't worry, we will fix it.
 
-To know how to connect to the database SQLAlchemy requires path 
+In order to connect to the database with SQLAlchemy you need the path 
 and credentials to this database. To do that we can add 
-parameter `SQLALCHEMY_DATABASE_URI` with the full address to the DB 
-we created in docker.  Let's open file `server/__init__.py` and right 
+parameter `SQLALCHEMY_DATABASE_URI` with the full address to the database 
+we created in the docker. Let's open file `server/__init__.py` and right 
 after creating `app` (`app = Flask(__name__)`) add:
 
 ```python
@@ -518,7 +519,7 @@ app.config['SQLALCHEMY_DATABASE_URI'] = 'postgresql://mablog:mablog@localhost:54
 ```
 
 In this url you can see that we use login and password `mablog` (`mablog:mablog`), 
-port 5433 and dbname `mablog`. After that we can create instance of SQLAlchemy
+port 5433 and dbname `mablog`. After that we can create an instance of SQLAlchemy
 and import `User` model:
 
 ```python
@@ -527,27 +528,27 @@ db = SQLAlchemy(app)
 from app.models import User
 ```
 
-You can run the app but actually nothing will happen because firstly 
-we don't use this model and secondly this model is not applied to 
-the database. We have only python code that describes the model 
-we want, but Postgres DB knows nothing about it. Let's about the second 
-problem in detail.
+You can run the app but nothing will happen because 
+this model is not applied to 
+the database. We have a python code that describes the model 
+we want, but Postgres DB knows nothing about it. Let's discuss this problem in detail.
 
 ### About imports in PyCharm
 
-if you open in PyCharm not the directory server, but the whole 
-project (directory `my-awesome-blog`) like I, you can get an error 
-with import like this:
+If you open the whole project on PyCharm (except the `server` directory), 
+you may get the following error with the imports:
 
 ![28](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-25_at_17.39.55.png)
 
-It happens because IDE thinks that content root in the folder 
+IDE thinks that the content root is in the folder 
 you initially opened, but we actually write the code with the 
-assumption that content root in the `server` folder.
+assumption that the content root is in the `server` directory.
 
-So everything we need is to change the content root in the project structure. 
-Open `Project Structure` tab in preferences, remove the current 
+To fix this problem we need to change the content root in the project structure. 
+Open the `Project Structure` tab under preferences, remove the current 
 content root and press `Add Content Root`:
+
+[](WE STOPPED HERE)
 
 ![29](https://oob-bucket-prod.s3.eu-central-1.amazonaws.com/1/6/Screenshot_2020-04-25_at_19.04.33.png)
 
